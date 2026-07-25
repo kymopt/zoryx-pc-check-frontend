@@ -40,10 +40,11 @@ RUN addgroup --system --gid 1001 nodejs \
 RUN mkdir -p ./public
 COPY --from=builder /app/public ./public
 
-# The standalone output includes a minimal server.js, a pruned copy of
-# node_modules, and package.json needed to run the app without "next start".
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy the full build output, package.json/lockfile, and production
+# node_modules so "next start" can run normally without standalone mode.
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 USER nextjs
 
@@ -51,4 +52,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
