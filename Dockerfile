@@ -23,11 +23,6 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 RUN npm run build
 
-# ---- Production dependencies stage ----
-FROM base AS prod-deps
-COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
-
 # ---- Runner (production) stage ----
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -44,10 +39,11 @@ RUN addgroup --system --gid 1001 nodejs \
 # assets to serve, so this COPY never fails the build.
 RUN mkdir -p ./public
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.js ./next.config.js
-COPY --from=builder /app/package.json ./package.json
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+
+# The standalone output includes a minimal server.js, a pruned copy of
+# node_modules, and package.json needed to run the app without "next start".
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
@@ -55,4 +51,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
